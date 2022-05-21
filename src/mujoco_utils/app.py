@@ -23,9 +23,9 @@ _MAX_FRONTBUFFER_SIZE = 2048
 
 
 class MujocoApplication:
-    def __init__(self, physics, robots_to_compute=[], frame_rate=24, dt=0.001, use_touchpad=True, width=768, height=576, title="Mujoco Simulator"):
+    def __init__(self, physics, robots_to_compute=[], frame_rate=24, use_touchpad=True, width=768, height=576, title="Mujoco Simulator"):
         self.physics = physics
-        self.dt = dt
+        self.dt = physics.timestep()
 
         self.robots_to_compute = robots_to_compute
 

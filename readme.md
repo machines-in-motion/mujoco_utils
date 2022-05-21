@@ -167,7 +167,89 @@ While this is the output when removing the contact-exclusion in world_solo12.xml
 
 Note the detected contacts between the first geometry (the base) and the other geometires (1 <-> 3, 1 <-> 7, 1 <-> 11, 1 <-> 15).
 
+#### Using the wrapper
 
+To make working with Pinocchio from Mujoco easier, we provide a wrapper, which translates between the two world. For instance, in Mujoco, the quaternions are encoded differently `w x y z`, while Pinocchio takes them as `x y z w` coordinates.
+
+You can create a robot wrapper like the following:
+
+```python
+# Load the model of Solo12 and create a mujoco simulation.
+physics = mujoco.Physics.from_xml_path('world_solo12.xml')
+
+# Load Solo12 as a pinocchio robot.
+pin_robot = Solo12Config.buildRobotWrapper()
+
+# Create wrapper to make interaction between Mujoco <-> Pinocchio easy.
+jnt_names = [
+    'base',
+    'FL_HAA',
+    'FL_HFE',
+    'FL_KFE',
+    'FR_HAA',
+    'FR_HFE',
+    'FR_KFE',
+    'HL_HAA',
+    'HL_HFE',
+    'HL_KFE',
+    'HR_HAA',
+    'HR_HFE',
+    'HR_KFE'
+]
+robot = MujocoWrapper(physics, pin_robot, jnt_names, [5, 9, 13, 17])
+```
+
+The indices `[5, 9, 13, 17]` are the geom ids of the endeffector that make contact (see above on how to get this ids from the `physics.data.contact` entry). Using the `robot.get_end_effector_forces()`, you can then get the forces and torques acting on the endeffector ids.
+
+#### Using the visualizer
+
+The `dm_control` package comes with a visualizer. See more details [here](https://github.com/deepmind/dm_control/tree/3e1736d7e641ab751eb25bfa7622fea71c8da9c6/dm_control/viewer#interactive-environment-viewer). The visualizer is great. However, it is not straight forward to use the visualizer without defining a `dm_control` suite. It is also not possible to step the simulator / application in a sequential fashion / without using a callback function.
+
+To overcome these issues, a `MujocoApplication` is provided in this package. This application builds on top of the viewer provided by `dm_control`. Having created a `MujocoWrapper` before, the following shows how to create an app and run a simple PD controller in a control loop:
+
+```python
+app = MujocoApplication(physics, frame_rate=24)
+
+# 10 s simulation
+N = 1000
+
+robot.reset_state(Solo12Config.q0, Solo12Config.v0)
+
+start = time.time()
+
+for i in range(N):
+# while True:
+    q, dq = robot.get_state()
+    jnt_des = np.array([0., 0.8, -1.6, 0., 0.8, -1.6, 0., -0.8, 1.6, 0., -0.8, 1.6])
+    tau = 5. * (jnt_des - q[7:]) - 0.05 * dq[6:]
+    robot.send_joint_command(tau)
+
+    # Uses a sleep factor of 2x:
+    # Means the robot runs 2x as fast as realtime assuming the rendering time
+    # and running the controller allows it in the time budget.
+    app.step(sleep=2)
+
+# Force a redraw to get the latest state of the robot in sync with the view.
+app.redraw()
+
+print(time.time() - start)
+app.close()
+```
+
+A few remarks:
+
+* Like PyBullet, the visualizer allows for perturbations with the mouse. For this, double click on the body you want to perturbe and hold down the ctrl key, press the mouse and move. A red pertubation arrow should appear and the robot move.
+
+* The visualizer is rendered by calling the `app.step` accordingly to the specify frame_rate. To make the visualization be aligned with the latest state of the robot, it's important to call the `app.redraw` at the end of the control loop
+
+* Doing the rendering can take up quite a bit of time. If you want to get maximum speed of the simulation, you can do the following: Reduce the frame rate of the application or/and reduce the window width and height. In practise, a frame_rate of 12 might feel good enough for everyday research, while 24 should be used for publication videos.
+
+* If you want to render async, the recommendation is to use Meshcat as visualizer and step the physics/robot yourself (get the state from the robot, apply it to meshcat etc)
+
+* The `sleep` option on the `app.step` method has a few optoins.
+    * You can either not sleep at all by specifing `app.step(sleep=False)`. This will step the simulator as fast as possible while doing the rendering at the specified app's frame rate.
+    * If you specify `app.step(sleep=True)`, the app will sleep after each step for `dt` time as provided by `physics.timestep()`
+    * If you specify a float like `app.step(sleep=1.)`, the app will try to render and step x time faster than specified. For instance, when sleep=1., then the app will try to run at realtime speed (so 10 s simulation should take around 10 s in the app). When you specify `sleep=2`, the simulation will step twice as fast as realtime (10 s should run in 5 s in the app). Note that this is limited by the speed of executing the controller and the rendering speed. You can also use this setting to slow down, by e.g. specifing `sleep=0.1`, which makes 1 s in simulation beeing rendered over 10 seconds.
 
 ### License and Copyrights
 
