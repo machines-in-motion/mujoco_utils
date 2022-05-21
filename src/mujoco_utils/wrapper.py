@@ -5,12 +5,13 @@ Copyright note valid unless otherwise stated in individual files.
 All rights reserved.
 """
 
+import warnings
 import numpy as np
 from dm_control import mujoco
 
 
 class MujocoWrapper:
-    def __init__(self, physics, pinocchio_robot, joint_names, mujoco_endeff_geom_id, useFixedBase):
+    def __init__(self, physics, pinocchio_robot, joint_names, mujoco_endeff_geom_id):
         """
         Args:
             mujoco_endeff_geom_id: The mujoco id of the endeffector to check contact with.
@@ -22,8 +23,13 @@ class MujocoWrapper:
         self.nj = len(joint_names)
         self.nf = len(mujoco_endeff_geom_id)
         self.pinocchio_robot = pinocchio_robot
-        self.useFixedBase = useFixedBase
-        self.nb_dof = self.nv - 6
+
+        self.use_fixed_base = self.nq == self.nv
+
+        if self.use_fixed_base:
+            self.nb_dof = self.nv
+        else:
+            self.nb_dof = self.nv - 6
 
         self.joint_names = joint_names
         self.mujoco_endeff_geom_id = np.array(mujoco_endeff_geom_id)
@@ -32,38 +38,80 @@ class MujocoWrapper:
         self.physics.step()
 
     def get_state(self):
-        # TODO: Should loop over the joint_names.
-        # TODO: Need to make it work for fixed-base robots.
-        q = np.array(self.physics.named.data.qpos)
-        dq = np.array(self.physics.named.data.qvel)
+        q = np.zeros(self.nq)
+        v = np.zeros(self.nv)
+        qpos = self.physics.named.data.qpos
+        qvel = self.physics.named.data.qvel
+        joint_names = self.joint_names
 
-        # TODO: Need to do the quaternion check general.
-        # Need to swap quaternion into pinocchio convention.
-        quat = q[3:7].copy()
-        q[3:6] = quat[1:]
-        q[6] = quat[0]
+        # In case of free-floating robot, need to get the 7-dim
+        # base joint first.
+        if not self.use_fixed_base:
+            q[:7] = qpos[joint_names[0]]
+            v[:6] = qvel[joint_names[0]]
 
-        return q, dq
+            # Convert the Mujoco quaternion into pinocchio convention.
+            quat = q[3:7].copy()
+            q[3:6] = quat[1:]
+            q[6] = quat[0]
+
+            q_offset = 6
+            v_offset = 5
+        else:
+            q[0] = qpos[joint_names[0]]
+            v[0] = qvel[joint_names[0]]
+
+            q_offset = 0
+            v_offset = 0
+
+        for i in range(1, self.nj):
+            q[q_offset + i] = qpos[joint_names[i]]
+            v[v_offset + i] = qvel[joint_names[i]]
+
+        return q, v
 
     def send_joint_command(self, tau):
-        # TODO: Do proper mapping.
-        self.physics.data.ctrl = tau
+        ctrl = physics.named.data.ctrl
+        joint_names = self.joint_names
 
-    def reset_state(self, q, dq):
-        q_mjco = q.copy()
-        q_mjco[3] = q[6]
-        q_mjco[4] = q[3]
-        q_mjco[5] = q[4]
-        q_mjco[6] = q[5]
+        if self.use_fixed_base:
+            joint_start = 0
+        else:
+            joint_start = 1
+
+        for i, ji in enumerate(range(joint_start, self.nj)):
+            ctrl[joint_names[ji]] = tau[i]
+
+    def reset_state(self, q, v):
+        qpos = self.physics.named.data.qpos
+        qvel = self.physics.named.data.qvel
+        joint_names = self.joint_names
 
         with self.physics.reset_context():
-            self.physics.data.qpos = q_mjco
-            self.physics.data.qvel = dq
+            # Treat the first joint differently for free-floating joints.
+            q_mjco = q.copy()
+            v_mjco = v
+            if not self.use_fixed_base:
+                q_offset = 6
+                v_offset = 5
+                q_mjco[3] = q[6]
+                q_mjco[4] = q[3]
+                q_mjco[5] = q[4]
+                q_mjco[6] = q[5]
+
+                qpos[joint_names[0]] = q_mjco[:7]
+                qvel[joint_names[0]] = v_mjco[:6]
+            else:
+                q_offset = 0
+                v_offset = 0
+                qpos[joint_names[0]] = q_mjco[0]
+                qvel[joint_names[0]] = v_mjco[0]
+
+            for ji in range(1, self.nj):
+                qpos[joint_names[ji]] = q_mjco[q_offset + ji]
+                qvel[joint_names[ji]] = v_mjco[v_offset + ji]
 
     def get_end_effector_forces(self):
-        return self.end_effector_forces()
-
-    def end_effector_forces(self):
         contact = self.physics.data.contact
         cnt_geom1 = contact.geom1
         cnt_geom2 = contact.geom2
@@ -95,3 +143,7 @@ class MujocoWrapper:
             cnt_forces[i] = np.hstack([force, tau])
 
         return cnt_status, cnt_forces
+
+    def end_effector_forces(self):
+        warnings.warn("The method end_effector_forces is deprecated. Please use get_end_effector_forces() instead.", DeprecationWarning)
+        return self.get_end_effector_forces()
