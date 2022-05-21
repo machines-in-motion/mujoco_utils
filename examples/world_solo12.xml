@@ -1,8 +1,7 @@
 <mujoco model="solo">
     <compiler angle="radian"/>
 
-    <option timestep="0.001">
-    </option>
+    <option timestep="0.001"/>
 
     <size njmax="500" nconmax="100"/>
 
