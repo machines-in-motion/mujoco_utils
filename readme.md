@@ -1,4 +1,4 @@
-Bullet Utils
+Mujoco Utils
 ------
 
 The code provided in this repo simplifies the interaction between pinocchio and mujoco.
