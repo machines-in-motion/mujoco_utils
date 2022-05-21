@@ -15,6 +15,7 @@ To run the demo, you need to install
 [robot_properties_solo](https://github.com/open-dynamic-robot-initiative/robot_properties_solo)
 as well.
 
+To convert URDF to XML you will need the Mujoco app. To have this download the appropriate zip file from this [link](https://github.com/deepmind/mujoco/releases). Extract the folder. 
 #### Download the package
 
 To download this package, you can
@@ -84,11 +85,11 @@ TODO: *Where to find the last built doc on the internet.*
 
 Assume you have already your robot specified in a URDF file, the conversion to Mujoco's XML format can be done automatically.
 
-1. Open the Mujoco app
-2. Drop the URDF file onto the app visualizer. Note that Mujoco ignores the path to the stl meshes and you might have to copy the stl meshes to the in the same folder as the URDF file
-3. If things worked, you should now see the robot visualized in Mujoco
-4. Click the "Save xml" button on the top left. This will export the URDF to xml
-5. Grab the xml file. The file is stored next to the mujoco executeable. See the [hints here](https://github.com/deepmind/mujoco/issues/110) where to find it on macOS
+1. Open the Mujoco app - Run the exectubale simulate inside the bin folder of the downloaded mujoco folder (mentioned in the standard dependencies section)
+3. Drop the URDF file onto the app visualizer. Note that Mujoco ignores the path to the stl meshes and you might have to copy the stl meshes to the in the same folder as the URDF file
+4. If things worked, you should now see the robot visualized in Mujoco
+5. Click the "Save xml" button on the top left. This will export the URDF to xml
+6. Grab the xml file. The file is stored next to the mujoco executeable. See the [hints here](https://github.com/deepmind/mujoco/issues/110) where to find it on macOS
 
 At this point, you have the robot converted to xml. There are a few additional steps that you need to perform manually now to improve the modeling. You might want to take a look at the example xml of Solo12 in `examples/` to get an idea what is discussed in the following.
 
