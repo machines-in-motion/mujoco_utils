@@ -23,9 +23,11 @@ _MAX_FRONTBUFFER_SIZE = 2048
 
 
 class MujocoApplication:
-    def __init__(self, physics, frame_rate=24, dt=0.001, use_touchpad=True, width=768, height=576, title="Mujoco Simulator"):
+    def __init__(self, physics, robots_to_compute=[], frame_rate=24, dt=0.001, use_touchpad=True, width=768, height=576, title="Mujoco Simulator"):
         self.physics = physics
         self.dt = dt
+
+        self.robots_to_compute = robots_to_compute
 
         self.viewport = renderer.Viewport(width, height)
         self.window = gui.RenderWindow(width, height, title)
@@ -62,10 +64,19 @@ class MujocoApplication:
         with self.viewer.perturbation.apply(False):
             self.physics.step()
 
+        # Update numerical values on provided robots.
+        for robot in self.robots_to_compute:
+            robot.compute_numerical_quantities(self.dt)
+
         # Sleep for dt if desired.
         if sleep:
+            # Check if doing simple sleep for dt period of time.
             if isinstance(sleep, bool):
                 time.sleep(self.dt)
+
+            # Otherwise, perform a more complex sleep. THe sleep factor
+            # indicates how fast compared to realtime the simulation
+            # should run (if conntrol & render speed allow it).
             else:
                 steps_per_render = sleep * self.render_interval * 1. / self.dt
 
