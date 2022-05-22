@@ -127,3 +127,6 @@ class MujocoApplication:
 
     def close(self):
         self.window.close()
+
+    def zoom_to_scene(self):
+        self.viewer.camera.zoom_to_scene()

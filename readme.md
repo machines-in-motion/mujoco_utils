@@ -56,7 +56,7 @@ You can install this package with
 
 To run the example
 ```
-cd mkdir -p ~/devel/workspace/src/bullet_utils/demos
+cd mkdir -p ~/devel/workspace/src/mujoco_utils/examples
 python3 solo12_impedane_standing.py
 ```
 
