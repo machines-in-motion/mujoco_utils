@@ -130,3 +130,14 @@ class MujocoApplication:
 
     def zoom_to_scene(self):
         self.viewer.camera.zoom_to_scene()
+        self.redraw()
+
+    def set_camera_view(self, distance, pitch, yaw, look_at):
+        camera = self.viewer.camera
+
+        camera.settings.distance = distance
+        camera.settings.azimuth = pitch
+        camera.settings.elevation = -yaw
+        camera.settings.look_at = look_at
+
+        self.redraw()
